@@ -1,0 +1,39 @@
+{
+  "name": "qddc",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "WebAssembly 2D Canvas 渲染库 - 使用 Rust/WASM 共享内存进行高效渲染",
+  "main": "./dist/qddc.umd.cjs",
+  "module": "./dist/qddc.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/qddc.js",
+      "require": "./dist/qddc.umd.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "pkg"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:wasm && tsc && vite build",
+    "build:wasm": "cd crate && wasm-pack build --target web --out-dir ../pkg",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.9",
+    "typescript": "~5.7.2",
+    "vite": "^6.3.1"
+  },
+  "keywords": [
+    "wasm",
+    "webassembly",
+    "canvas",
+    "2d",
+    "rendering"
+  ],
+  "license": "MIT"
+}
