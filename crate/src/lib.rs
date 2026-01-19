@@ -87,3 +87,46 @@ pub fn init() {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
 }
+
+/// 简单内存块 - 演示 WASM 内存操作
+/// 
+/// 这个结构体持有一块固定大小的内存，可以通过方法全部置0或置1
+#[wasm_bindgen]
+pub struct MemoryBlock {
+    /// 内存数据
+    data: Vec<u8>,
+}
+
+#[wasm_bindgen]
+impl MemoryBlock {
+    /// 创建新的内存块
+    #[wasm_bindgen(constructor)]
+    pub fn new(size: usize) -> Self {
+        let data = vec![0u8; size];
+        Self { data }
+    }
+
+    /// 获取内存大小
+    pub fn size(&self) -> usize {
+        self.data.len()
+    }
+
+    /// 获取内存数据的指针（用于 JS 端访问共享内存）
+    pub fn data_ptr(&self) -> *const u8 {
+        self.data.as_ptr()
+    }
+
+    /// 将内存全部填充为 0
+    pub fn fill_zeros(&mut self) {
+        for byte in self.data.iter_mut() {
+            *byte = 0;
+        }
+    }
+
+    /// 将内存全部填充为 1 (0xFF)
+    pub fn fill_ones(&mut self) {
+        for byte in self.data.iter_mut() {
+            *byte = 0xFF;
+        }
+    }
+}
