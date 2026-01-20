@@ -1,5 +1,10 @@
 use wasm_bindgen::prelude::*;
 
+mod core;
+mod math;
+
+pub use core::World;
+
 /// 像素缓冲区 - 存储 RGBA 数据
 /// 
 /// 这个结构体持有一个 RGBA 格式的像素数组，可以直接与 JS 端的 Canvas ImageData 共享。
