@@ -3,6 +3,7 @@
 //! 精灵图是可变换的图像单元，包含像素数据和变换属性。
 
 use crate::math::Matrix3x3;
+use super::sampling::{SamplingMethod, sample_nearest, sample_bilinear, sample_supersampling};
 
 /// 精灵图 - 可变换的图像单元
 ///
@@ -182,7 +183,14 @@ impl Sprite {
     /// * `target` - 目标 RGBA 像素缓冲区
     /// * `target_width` - 目标缓冲区宽度
     /// * `target_height` - 目标缓冲区高度
-    pub fn render_to(&self, target: &mut [u8], target_width: u32, target_height: u32) {
+    /// * `sampling_method` - 采样方法
+    pub fn render_to(
+        &self,
+        target: &mut [u8],
+        target_width: u32,
+        target_height: u32,
+        sampling_method: SamplingMethod,
+    ) {
         let transform = self.transform_matrix();
         let inverse = match transform.inverse() {
             Some(inv) => inv,
@@ -244,27 +252,31 @@ impl Sprite {
                 let px = local_x + half_w;
                 let py = local_y + half_h;
 
-                // 最近邻采样
-                let src_x = px.round() as i32;
-                let src_y = py.round() as i32;
+                // 根据采样方法获取颜色
+                let sampled_color = match sampling_method {
+                    SamplingMethod::Nearest => {
+                        sample_nearest(&self.data, self.width, self.height, px, py)
+                    }
+                    SamplingMethod::Bilinear => {
+                        sample_bilinear(&self.data, self.width, self.height, px, py)
+                    }
+                    SamplingMethod::Supersampling => {
+                        sample_supersampling(&self.data, self.width, self.height, px, py)
+                    }
+                };
 
-                if src_x >= 0
-                    && src_x < self.width as i32
-                    && src_y >= 0
-                    && src_y < self.height as i32
-                {
-                    let src_idx = ((src_y as u32 * self.width + src_x as u32) * 4) as usize;
+                if let Some(color) = sampled_color {
                     let dst_idx = ((ty * target_width + tx) * 4) as usize;
 
                     // Alpha 混合
-                    let src_a = self.data[src_idx + 3] as f32 / 255.0;
+                    let src_a = color[3] as f32 / 255.0;
                     if src_a > 0.0 {
                         let dst_a = target[dst_idx + 3] as f32 / 255.0;
                         let out_a = src_a + dst_a * (1.0 - src_a);
 
                         if out_a > 0.0 {
                             for i in 0..3 {
-                                let src_c = self.data[src_idx + i] as f32;
+                                let src_c = color[i] as f32;
                                 let dst_c = target[dst_idx + i] as f32;
                                 target[dst_idx + i] =
                                     ((src_c * src_a + dst_c * dst_a * (1.0 - src_a)) / out_a)

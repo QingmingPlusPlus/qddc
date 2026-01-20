@@ -21,6 +21,15 @@
         <div class="controls">
           <h2>精灵图管理</h2>
 
+          <div class="control-section">
+            <label for="samplingMethod">采样方法:</label>
+            <select id="samplingMethod" class="select-control">
+              <option value="nearest">最近邻 (锯齿)</option>
+              <option value="bilinear">双线性插值 (平滑)</option>
+              <option value="supersampling">超采样 2x2 (最佳)</option>
+            </select>
+          </div>
+
           <div class="button-group">
             <button id="createSprite" class="btn btn-primary">+ 创建精灵图</button>
           </div>

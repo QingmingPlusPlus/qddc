@@ -2,6 +2,8 @@
 //!
 //! 场景是最终显示内容的容器，管理精灵图的渲染。
 
+use super::sampling::SamplingMethod;
+
 /// 场景 - 最终显示内容的容器
 ///
 /// 场景有固定的尺寸和像素缓冲区，可以添加多个精灵图并渲染到缓冲区。
@@ -17,6 +19,8 @@ pub struct Scene {
     sprite_ids: Vec<u32>,
     /// 背景颜色 RGBA
     background_color: [u8; 4],
+    /// 采样方法
+    sampling_method: SamplingMethod,
 }
 
 impl Scene {
@@ -35,7 +39,18 @@ impl Scene {
             height,
             sprite_ids: Vec::new(),
             background_color: [0, 0, 0, 255], // 默认黑色背景
+            sampling_method: SamplingMethod::default(),
         }
+    }
+
+    /// 获取采样方法
+    pub fn sampling_method(&self) -> SamplingMethod {
+        self.sampling_method
+    }
+
+    /// 设置采样方法
+    pub fn set_sampling_method(&mut self, method: SamplingMethod) {
+        self.sampling_method = method;
     }
 
     /// 获取场景宽度

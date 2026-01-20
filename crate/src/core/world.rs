@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
+use super::sampling::SamplingMethod;
 use super::scene::Scene;
 use super::sprite::Sprite;
 
@@ -200,6 +201,22 @@ impl World {
         self.scene.set_background_color(r, g, b, a);
     }
 
+    /// 设置采样方法
+    ///
+    /// # Arguments
+    /// * `method` - 采样方法 (0=Nearest, 1=Bilinear, 2=Supersampling)
+    pub fn set_sampling_method(&mut self, method: u8) {
+        self.scene.set_sampling_method(SamplingMethod::from_u8(method));
+    }
+
+    /// 获取当前采样方法
+    ///
+    /// # Returns
+    /// 采样方法 (0=Nearest, 1=Bilinear, 2=Supersampling)
+    pub fn get_sampling_method(&self) -> u8 {
+        self.scene.sampling_method().to_u8()
+    }
+
     /// 渲染一帧
     ///
     /// 清空场景缓冲区，按 z-index 排序精灵图，然后逐个渲染。
@@ -221,12 +238,13 @@ impl World {
         // 渲染每个精灵图
         let width = self.scene.width();
         let height = self.scene.height();
+        let sampling_method = self.scene.sampling_method();
 
         for sprite_id in to_render {
             if let Some(sprite) = self.sprites.get(&sprite_id) {
                 // 由于借用检查，我们需要先克隆精灵图或分离数据
                 let sprite_clone = sprite.clone();
-                sprite_clone.render_to(self.scene.data_mut(), width, height);
+                sprite_clone.render_to(self.scene.data_mut(), width, height, sampling_method);
             }
         }
     }

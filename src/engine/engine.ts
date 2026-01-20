@@ -2,6 +2,11 @@ import init, { World } from '../../pkg/qddc_wasm'
 import { Sprite } from './sprite'
 
 /**
+ * 采样方法类型
+ */
+export type SamplingMethod = 'nearest' | 'bilinear' | 'supersampling'
+
+/**
  * 2D 渲染引擎
  *
  * 封装 WASM World，提供精灵图管理和渲染功能。
@@ -123,6 +128,28 @@ export class Engine {
      */
     setBackgroundColor(r: number, g: number, b: number, a: number = 255) {
         this.world.set_background_color(r, g, b, a)
+    }
+
+    /**
+     * 设置采样方法
+     * @param method 采样方法: 'nearest' | 'bilinear' | 'supersampling'
+     */
+    setSamplingMethod(method: SamplingMethod) {
+        const methodMap: Record<SamplingMethod, number> = {
+            'nearest': 0,
+            'bilinear': 1,
+            'supersampling': 2,
+        }
+        this.world.set_sampling_method(methodMap[method])
+    }
+
+    /**
+     * 获取当前采样方法
+     */
+    getSamplingMethod(): SamplingMethod {
+        const value = this.world.get_sampling_method()
+        const methods: SamplingMethod[] = ['nearest', 'bilinear', 'supersampling']
+        return methods[value] || 'nearest'
     }
 
     /**

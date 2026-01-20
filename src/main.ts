@@ -1,5 +1,5 @@
 import './style.css'
-import { Engine, Sprite } from './engine'
+import { Engine, Sprite, SamplingMethod } from './engine'
 
 // 状态
 let engine: Engine | null = null
@@ -209,6 +209,15 @@ async function main() {
  */
 function bindEvents() {
   const spriteList = document.getElementById('spriteList')!
+
+  // 采样方法选择器
+  const samplingSelect = document.getElementById('samplingMethod') as HTMLSelectElement
+  samplingSelect.addEventListener('change', () => {
+    if (!engine) return
+    const method = samplingSelect.value as SamplingMethod
+    engine.setSamplingMethod(method)
+    console.log(`Sampling method changed to: ${method}`)
+  })
 
   // 创建精灵图
   document.getElementById('createSprite')!.addEventListener('click', () => {
