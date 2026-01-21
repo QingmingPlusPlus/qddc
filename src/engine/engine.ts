@@ -153,6 +153,33 @@ export class Engine {
     }
 
     /**
+     * 设置精灵图 z-index
+     * @param sprite 精灵图对象
+     * @param zindex z-index 值
+     */
+    setSpriteZIndex(sprite: Sprite, zindex: number) {
+        sprite.zindex = zindex
+        this.world.set_sprite_zindex(sprite.id, zindex)
+    }
+
+    /**
+     * 获取精灵图 z-index
+     * @param sprite 精灵图对象
+     */
+    getSpriteZIndex(sprite: Sprite): number {
+        return this.world.get_sprite_zindex(sprite.id)
+    }
+
+    /**
+     * 重置精灵图变换
+     * @param sprite 精灵图对象
+     */
+    resetSpriteTransform(sprite: Sprite) {
+        sprite.resetTransform()
+        this.world.reset_sprite_transform(sprite.id)
+    }
+
+    /**
      * 渲染一帧到 Canvas
      */
     render() {
@@ -190,8 +217,16 @@ export class Engine {
      * 同步精灵图状态到 WASM
      */
     private _syncSpriteToWasm(sprite: Sprite) {
+        // 同步位置
         this.world.set_sprite_position(sprite.id, sprite.position.x, sprite.position.y)
-        this.world.set_sprite_rotation(sprite.id, sprite.rotation)
-        this.world.set_sprite_scale(sprite.id, sprite.scale.x, sprite.scale.y)
+
+        // 同步 z-index
+        this.world.set_sprite_zindex(sprite.id, sprite.zindex)
+
+        // 如果变换有变化，应用组合变换
+        if (sprite._isTransformDirty()) {
+            this.world.apply_sprite_transform(sprite.id, sprite.rotation, sprite.scale.x, sprite.scale.y)
+            sprite._clearTransformDirty()
+        }
     }
 }

@@ -21,6 +21,8 @@
     "dev": "vite",
     "build": "npm run build:wasm && tsc && vite build",
     "build:wasm": "cd crate && wasm-pack build --target web --out-dir ../pkg",
+    "test": "npm run test:wasm",
+    "test:wasm": "cd crate && cargo test",
     "preview": "vite preview"
   },
   "devDependencies": {

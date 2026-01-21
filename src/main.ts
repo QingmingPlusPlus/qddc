@@ -22,6 +22,7 @@ const COLORS = [
 const TRANSLATE_STEP = 20
 const ROTATE_STEP = Math.PI / 12  // 15 度
 const SCALE_STEP = 1.2
+const ZINDEX_STEP = 1
 
 /**
  * 创建精灵图控制卡片
@@ -43,7 +44,8 @@ function createSpriteCard(sprite: Sprite, color: number[]): HTMLElement {
     <div class="sprite-card-info">
       <span class="info-label">位置:</span> <span class="pos-x">${sprite.position.x.toFixed(1)}</span>, <span class="pos-y">${sprite.position.y.toFixed(1)}</span><br>
       <span class="info-label">旋转:</span> <span class="rotation">${(sprite.rotation * 180 / Math.PI).toFixed(1)}</span>°<br>
-      <span class="info-label">缩放:</span> <span class="scale-x">${sprite.scale.x.toFixed(2)}</span>, <span class="scale-y">${sprite.scale.y.toFixed(2)}</span>
+      <span class="info-label">缩放:</span> <span class="scale-x">${sprite.scale.x.toFixed(2)}</span>, <span class="scale-y">${sprite.scale.y.toFixed(2)}</span><br>
+      <span class="info-label">层级:</span> <span class="zindex">${sprite.zindex}</span>
     </div>
     <div class="sprite-card-controls">
       <div class="control-row">
@@ -69,6 +71,13 @@ function createSpriteCard(sprite: Sprite, color: number[]): HTMLElement {
           <button class="btn-mini" data-action="scale-down" data-sprite-id="${sprite.id}">−</button>
         </div>
       </div>
+      <div class="control-row">
+        <span class="control-label">层级</span>
+        <div class="control-buttons">
+          <button class="btn-mini" data-action="zindex-up" data-sprite-id="${sprite.id}">▲</button>
+          <button class="btn-mini" data-action="zindex-down" data-sprite-id="${sprite.id}">▼</button>
+        </div>
+      </div>
     </div>
   `
 
@@ -87,12 +96,14 @@ function updateSpriteCard(sprite: Sprite) {
   const rotation = card.querySelector('.rotation')
   const scaleX = card.querySelector('.scale-x')
   const scaleY = card.querySelector('.scale-y')
+  const zindex = card.querySelector('.zindex')
 
   if (posX) posX.textContent = sprite.position.x.toFixed(1)
   if (posY) posY.textContent = sprite.position.y.toFixed(1)
   if (rotation) rotation.textContent = (sprite.rotation * 180 / Math.PI).toFixed(1)
   if (scaleX) scaleX.textContent = sprite.scale.x.toFixed(2)
   if (scaleY) scaleY.textContent = sprite.scale.y.toFixed(2)
+  if (zindex) zindex.textContent = sprite.zindex.toString()
 }
 
 /**
@@ -121,7 +132,7 @@ function updateEmptyHint() {
  */
 function handleSpriteAction(action: string, spriteId: number) {
   const sprite = sprites.get(spriteId)
-  if (!sprite) return
+  if (!sprite || !engine) return
 
   switch (action) {
     case 'translate-left':
@@ -147,6 +158,12 @@ function handleSpriteAction(action: string, spriteId: number) {
       break
     case 'scale-down':
       sprite.scaleBy(1 / SCALE_STEP, 1 / SCALE_STEP)
+      break
+    case 'zindex-up':
+      engine.setSpriteZIndex(sprite, sprite.zindex + ZINDEX_STEP)
+      break
+    case 'zindex-down':
+      engine.setSpriteZIndex(sprite, sprite.zindex - ZINDEX_STEP)
       break
   }
 
@@ -235,6 +252,9 @@ function bindEvents() {
     const offsetY = (Math.random() - 0.5) * 200
     sprite.setPosition(offsetX, offsetY)
 
+    // 设置初始 z-index (根据创建顺序)
+    engine.setSpriteZIndex(sprite, spriteCount)
+
     // 添加到场景
     engine.addToScene(sprite)
 
@@ -247,7 +267,7 @@ function bindEvents() {
 
     updateEmptyHint()
 
-    console.log(`Created sprite ${sprite.id} at (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`)
+    console.log(`Created sprite ${sprite.id} at (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)}) with zindex ${sprite.zindex}`)
   })
 
   // 使用事件委托处理精灵图操作

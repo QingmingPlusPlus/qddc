@@ -2,28 +2,37 @@
  * JS 端精灵图对象
  *
  * 与 WASM 精灵图 ID 对应，维护本地状态。
+ * WASM 端只存储 id、data、size、position、zindex。
+ * JS 端存储变换状态（旋转角度、缩放因子）用于累积变换。
  */
 export class Sprite {
-    /** 精灵图 ID (在 WASM 端分配) */
+    /** 精灵图 ID (在 WASM 端分配，即数组索引) */
     readonly id: number
 
     /** 位置 (几何中心) */
     position: { x: number; y: number }
 
-    /** 旋转角度 (弧度) */
+    /** 旋转角度 (弧度) - JS端累积值 */
     rotation: number
 
-    /** 缩放因子 */
+    /** 缩放因子 - JS端累积值 */
     scale: { x: number; y: number }
+
+    /** Z层级 */
+    zindex: number
 
     /** 引用的 World 更新函数 */
     private _updateFn: ((sprite: Sprite) => void) | null = null
+
+    /** 是否需要同步变换到WASM */
+    private _transformDirty: boolean = false
 
     constructor(id: number) {
         this.id = id
         this.position = { x: 0, y: 0 }
         this.rotation = 0
         this.scale = { x: 1, y: 1 }
+        this.zindex = 0
     }
 
     /**
@@ -31,6 +40,20 @@ export class Sprite {
      */
     _setUpdateFn(fn: (sprite: Sprite) => void) {
         this._updateFn = fn
+    }
+
+    /**
+     * 检查变换是否需要同步
+     */
+    _isTransformDirty(): boolean {
+        return this._transformDirty
+    }
+
+    /**
+     * 清除变换脏标记
+     */
+    _clearTransformDirty() {
+        this._transformDirty = false
     }
 
     /**
@@ -61,6 +84,7 @@ export class Sprite {
      */
     rotate(angle: number) {
         this.rotation += angle
+        this._transformDirty = true
         this._notifyUpdate()
     }
 
@@ -70,6 +94,7 @@ export class Sprite {
      */
     setRotation(angle: number) {
         this.rotation = angle
+        this._transformDirty = true
         this._notifyUpdate()
     }
 
@@ -81,6 +106,7 @@ export class Sprite {
     setScale(sx: number, sy: number) {
         this.scale.x = sx
         this.scale.y = sy
+        this._transformDirty = true
         this._notifyUpdate()
     }
 
@@ -92,6 +118,26 @@ export class Sprite {
     scaleBy(sx: number, sy: number) {
         this.scale.x *= sx
         this.scale.y *= sy
+        this._transformDirty = true
+        this._notifyUpdate()
+    }
+
+    /**
+     * 设置 z-index
+     * @param zindex 新的 z-index 值
+     */
+    setZIndex(zindex: number) {
+        this.zindex = zindex
+        this._notifyUpdate()
+    }
+
+    /**
+     * 重置变换状态
+     */
+    resetTransform() {
+        this.rotation = 0
+        this.scale = { x: 1, y: 1 }
+        this._transformDirty = true
         this._notifyUpdate()
     }
 
