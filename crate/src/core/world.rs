@@ -4,7 +4,7 @@
 
 use wasm_bindgen::prelude::*;
 
-use super::sampling::{sample_bilinear, sample_nearest, sample_supersampling, SamplingMethod};
+use super::sampling::{sample_bilinear, sample_supersampling, SamplingMethod};
 use crate::math::Matrix3x3;
 
 /// 精灵图存储 - 各属性分离为独立数组
@@ -96,6 +96,14 @@ pub struct SceneStore {
     sampling_methods: Vec<SamplingMethod>,
     /// 是否活跃
     active: Vec<bool>,
+    /// 已排序的精灵ID列表（缓存）
+    sorted_sprites: Vec<Vec<u32>>,
+    /// 排序脏标记
+    sort_dirty: Vec<bool>,
+    /// 预计算的背景行（缓存）
+    bg_rows: Vec<Vec<u8>>,
+    /// 背景行脏标记
+    bg_dirty: Vec<bool>,
 }
 
 impl SceneStore {
@@ -109,6 +117,10 @@ impl SceneStore {
             sprite_ids: Vec::new(),
             sampling_methods: Vec::new(),
             active: Vec::new(),
+            sorted_sprites: Vec::new(),
+            sort_dirty: Vec::new(),
+            bg_rows: Vec::new(),
+            bg_dirty: Vec::new(),
         }
     }
 
@@ -124,6 +136,10 @@ impl SceneStore {
         self.sprite_ids.push(Vec::new());
         self.sampling_methods.push(SamplingMethod::default());
         self.active.push(true);
+        self.sorted_sprites.push(Vec::new());
+        self.sort_dirty.push(true);
+        self.bg_rows.push(Vec::new());
+        self.bg_dirty.push(true);
         id
     }
 
@@ -196,8 +212,11 @@ impl World {
     pub fn remove_sprite(&mut self, id: u32) {
         self.sprites.remove(id);
         // 从所有场景中移除
-        for sprite_ids in &mut self.scenes.sprite_ids {
-            sprite_ids.retain(|&sid| sid != id);
+        for (scene_idx, sprite_ids) in self.scenes.sprite_ids.iter_mut().enumerate() {
+            if sprite_ids.contains(&id) {
+                sprite_ids.retain(|&sid| sid != id);
+                self.scenes.sort_dirty[scene_idx] = true;
+            }
         }
     }
 
@@ -237,6 +256,12 @@ impl World {
         let idx = id as usize;
         if self.sprites.is_active(id) {
             self.sprites.zindexes[idx] = zindex;
+            // 标记所有包含此精灵的场景为脏
+            for (scene_idx, sprite_ids) in self.scenes.sprite_ids.iter().enumerate() {
+                if sprite_ids.contains(&id) {
+                    self.scenes.sort_dirty[scene_idx] = true;
+                }
+            }
         }
     }
 
@@ -472,6 +497,7 @@ impl World {
         if self.scenes.is_active(scene_id) && self.sprites.is_active(sprite_id) {
             if !self.scenes.sprite_ids[scene_idx].contains(&sprite_id) {
                 self.scenes.sprite_ids[scene_idx].push(sprite_id);
+                self.scenes.sort_dirty[scene_idx] = true;
             }
         }
     }
@@ -480,7 +506,10 @@ impl World {
     pub fn remove_from_scene(&mut self, sprite_id: u32) {
         let scene_idx = self.default_scene as usize;
         if scene_idx < self.scenes.sprite_ids.len() {
-            self.scenes.sprite_ids[scene_idx].retain(|&id| id != sprite_id);
+            if self.scenes.sprite_ids[scene_idx].contains(&sprite_id) {
+                self.scenes.sprite_ids[scene_idx].retain(|&id| id != sprite_id);
+                self.scenes.sort_dirty[scene_idx] = true;
+            }
         }
     }
 
@@ -488,7 +517,11 @@ impl World {
     pub fn set_background_color(&mut self, r: u8, g: u8, b: u8, a: u8) {
         let idx = self.default_scene as usize;
         if idx < self.scenes.background_colors.len() {
-            self.scenes.background_colors[idx] = [r, g, b, a];
+            let new_color = [r, g, b, a];
+            if self.scenes.background_colors[idx] != new_color {
+                self.scenes.background_colors[idx] = new_color;
+                self.scenes.bg_dirty[idx] = true;
+            }
         }
     }
 
@@ -522,28 +555,54 @@ impl World {
         let bg_color = self.scenes.background_colors[scene_idx];
         let sampling_method = self.scenes.sampling_methods[scene_idx];
 
-        // 清空场景 (填充背景色)
-        let scene_data = &mut self.scenes.data[scene_idx];
-        for chunk in scene_data.chunks_exact_mut(4) {
-            chunk[0] = bg_color[0];
-            chunk[1] = bg_color[1];
-            chunk[2] = bg_color[2];
-            chunk[3] = bg_color[3];
+        // 优化1: 使用预计算背景行清空场景
+        if self.scenes.bg_dirty[scene_idx] || self.scenes.bg_rows[scene_idx].len() != (width * 4) as usize {
+            // 重新生成背景行
+            let row_size = (width * 4) as usize;
+            let mut bg_row = vec![0u8; row_size];
+            for i in 0..width as usize {
+                bg_row[i * 4] = bg_color[0];
+                bg_row[i * 4 + 1] = bg_color[1];
+                bg_row[i * 4 + 2] = bg_color[2];
+                bg_row[i * 4 + 3] = bg_color[3];
+            }
+            self.scenes.bg_rows[scene_idx] = bg_row;
+            self.scenes.bg_dirty[scene_idx] = false;
         }
 
-        // 收集并排序精灵图
-        let mut sprite_ids: Vec<u32> = self.scenes.sprite_ids[scene_idx]
-            .iter()
-            .filter(|&&id| self.sprites.is_active(id))
-            .cloned()
-            .collect();
-        sprite_ids.sort_by_key(|&id| self.sprites.zindexes[id as usize]);
+        // 使用 copy_from_slice 批量填充背景
+        let row_size = (width * 4) as usize;
+        let bg_row = &self.scenes.bg_rows[scene_idx];
+        let scene_data = &mut self.scenes.data[scene_idx];
+        for row in scene_data.chunks_exact_mut(row_size) {
+            row.copy_from_slice(bg_row);
+        }
+
+        // 优化2: 使用缓存的排序精灵列表
+        if self.scenes.sort_dirty[scene_idx] {
+            let mut sorted: Vec<u32> = self.scenes.sprite_ids[scene_idx]
+                .iter()
+                .filter(|&&id| self.sprites.is_active(id))
+                .cloned()
+                .collect();
+            sorted.sort_by_key(|&id| self.sprites.zindexes[id as usize]);
+            self.scenes.sorted_sprites[scene_idx] = sorted;
+            self.scenes.sort_dirty[scene_idx] = false;
+        }
 
         // 渲染每个精灵图
         let center_x = width as f32 / 2.0;
         let center_y = height as f32 / 2.0;
 
+        // 克隆排序列表以避免借用冲突
+        let sprite_ids = self.scenes.sorted_sprites[scene_idx].clone();
+
         for sprite_id in sprite_ids {
+            // 跳过非活跃精灵
+            if !self.sprites.is_active(sprite_id) {
+                continue;
+            }
+            
             let idx = sprite_id as usize;
             let sprite_data = &self.sprites.display_data[idx];
             let sprite_w = self.sprites.display_widths[idx];
@@ -560,15 +619,33 @@ impl World {
             let start_y = ((pos_y - half_h + center_y).floor() as i32).max(0) as u32;
             let end_y = ((pos_y + half_h + center_y).ceil() as i32).min(height as i32) as u32;
 
-            // 逐像素渲染
+            // 优化3: 按行处理，减少索引计算
+            let scene_data = &mut self.scenes.data[scene_idx];
+            
             for ty in start_y..end_y {
+                let dst_row_start = (ty * width) as usize * 4;
+                let local_y = ty as f32 - center_y - pos_y + half_h;
+
                 for tx in start_x..end_x {
                     let local_x = tx as f32 - center_x - pos_x + half_w;
-                    let local_y = ty as f32 - center_y - pos_y + half_h;
 
+                    // 优化4: Nearest采样内联处理
                     let color = match sampling_method {
                         SamplingMethod::Nearest => {
-                            sample_nearest(sprite_data, sprite_w, sprite_h, local_x, local_y)
+                            // 内联最近邻采样
+                            let src_x = local_x.round() as i32;
+                            let src_y = local_y.round() as i32;
+                            if src_x >= 0 && src_x < sprite_w as i32 && src_y >= 0 && src_y < sprite_h as i32 {
+                                let src_idx = ((src_y as u32 * sprite_w + src_x as u32) * 4) as usize;
+                                Some([
+                                    sprite_data[src_idx],
+                                    sprite_data[src_idx + 1],
+                                    sprite_data[src_idx + 2],
+                                    sprite_data[src_idx + 3],
+                                ])
+                            } else {
+                                None
+                            }
                         }
                         SamplingMethod::Bilinear => {
                             sample_bilinear(sprite_data, sprite_w, sprite_h, local_x, local_y)
@@ -579,24 +656,29 @@ impl World {
                     };
 
                     if let Some(color) = color {
-                        let dst_idx = ((ty * width + tx) * 4) as usize;
-                        let src_a = color[3] as f32 / 255.0;
+                        let dst_idx = dst_row_start + (tx as usize) * 4;
+                        let src_a = color[3] as u32;
 
-                        if src_a > 0.0 {
-                            let dst_a = scene_data[dst_idx + 3] as f32 / 255.0;
-                            let out_a = src_a + dst_a * (1.0 - src_a);
-
-                            if out_a > 0.0 {
-                                for i in 0..3 {
-                                    let src_c = color[i] as f32;
-                                    let dst_c = scene_data[dst_idx + i] as f32;
-                                    scene_data[dst_idx + i] =
-                                        ((src_c * src_a + dst_c * dst_a * (1.0 - src_a)) / out_a)
-                                            as u8;
-                                }
-                                scene_data[dst_idx + 3] = (out_a * 255.0) as u8;
-                            }
+                        // 优化5: 快速路径 - 全透明跳过
+                        if src_a == 0 {
+                            continue;
                         }
+
+                        // 优化5: 快速路径 - 全不透明直接覆盖
+                        if src_a == 255 {
+                            scene_data[dst_idx] = color[0];
+                            scene_data[dst_idx + 1] = color[1];
+                            scene_data[dst_idx + 2] = color[2];
+                            scene_data[dst_idx + 3] = 255;
+                            continue;
+                        }
+
+                        // 优化6: 定点数Alpha混合 (避免浮点除法)
+                        let inv_a = 255 - src_a;
+                        scene_data[dst_idx] = ((color[0] as u32 * src_a + scene_data[dst_idx] as u32 * inv_a) / 255) as u8;
+                        scene_data[dst_idx + 1] = ((color[1] as u32 * src_a + scene_data[dst_idx + 1] as u32 * inv_a) / 255) as u8;
+                        scene_data[dst_idx + 2] = ((color[2] as u32 * src_a + scene_data[dst_idx + 2] as u32 * inv_a) / 255) as u8;
+                        scene_data[dst_idx + 3] = ((src_a * 255 + scene_data[dst_idx + 3] as u32 * inv_a) / 255) as u8;
                     }
                 }
             }
@@ -651,6 +733,7 @@ impl World {
             self.scenes.heights[idx] = height;
             let new_size = (width * height * 4) as usize;
             self.scenes.data[idx].resize(new_size, 0);
+            self.scenes.bg_dirty[idx] = true;
         }
     }
 }
