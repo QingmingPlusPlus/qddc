@@ -5,5 +5,5 @@
  */
 
 export { Engine } from './engine'
-export type { SamplingMethod } from './engine'
+export type { SamplingMethod, PerformanceMetrics } from './engine'
 export { Sprite } from './sprite'

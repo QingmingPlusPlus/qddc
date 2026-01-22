@@ -7,6 +7,24 @@ import { Sprite } from './sprite'
 export type SamplingMethod = 'nearest' | 'bilinear' | 'supersampling'
 
 /**
+ * 性能计时数据
+ */
+export interface PerformanceMetrics {
+    /** WASM 渲染时间 (ms) */
+    wasmRender: number
+    /** 内存读取时间 (ms) */
+    memoryRead: number
+    /** ImageData 复制时间 (ms) */
+    imageCopy: number
+    /** Canvas 绘制时间 (ms) */
+    canvasDraw: number
+    /** 总渲染时间 (ms) */
+    total: number
+    /** 精灵数量 */
+    spriteCount: number
+}
+
+/**
  * 2D 渲染引擎
  *
  * 封装 WASM World，提供精灵图管理和渲染功能。
@@ -196,6 +214,46 @@ export class Engine {
 
         // 绘制到 Canvas
         this.ctx.putImageData(this.imageData, 0, 0)
+    }
+
+    /**
+     * 渲染一帧并返回性能计时数据
+     */
+    renderWithTiming(): PerformanceMetrics {
+        const startTotal = performance.now()
+
+        // 1. WASM 渲染
+        const startWasm = performance.now()
+        this.world.render()
+        const wasmRender = performance.now() - startWasm
+
+        // 2. 从 WASM 内存读取渲染结果
+        const startMemory = performance.now()
+        const ptr = this.world.scene_data_ptr()
+        const len = this.world.scene_data_len()
+        const data = new Uint8ClampedArray(this.wasmMemory.buffer, ptr, len)
+        const memoryRead = performance.now() - startMemory
+
+        // 3. 复制到 ImageData
+        const startCopy = performance.now()
+        this.imageData.data.set(data)
+        const imageCopy = performance.now() - startCopy
+
+        // 4. 绘制到 Canvas
+        const startDraw = performance.now()
+        this.ctx.putImageData(this.imageData, 0, 0)
+        const canvasDraw = performance.now() - startDraw
+
+        const total = performance.now() - startTotal
+
+        return {
+            wasmRender,
+            memoryRead,
+            imageCopy,
+            canvasDraw,
+            total,
+            spriteCount: this.sprites.size
+        }
     }
 
     /**

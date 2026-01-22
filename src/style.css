@@ -48,6 +48,142 @@ h3 {
 
 .canvas-container {
     flex-shrink: 0;
+    position: relative;
+}
+
+.fps-display {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #00ff00;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 100;
+}
+
+/* 性能监控面板 */
+.perf-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid rgba(0, 212, 255, 0.5);
+    border-radius: 8px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    min-width: 220px;
+    z-index: 100;
+    backdrop-filter: blur(5px);
+}
+
+.perf-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(0, 212, 255, 0.15);
+    border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: 8px 8px 0 0;
+    color: #00d4ff;
+    font-weight: bold;
+}
+
+.perf-toggle {
+    background: transparent;
+    border: 1px solid rgba(0, 212, 255, 0.5);
+    color: #00d4ff;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.perf-toggle:hover {
+    background: rgba(0, 212, 255, 0.2);
+}
+
+.perf-content {
+    padding: 10px 12px;
+}
+
+.perf-content.collapsed {
+    display: none;
+}
+
+.perf-row {
+    display: grid;
+    grid-template-columns: 90px 50px 1fr;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.perf-row:last-child {
+    margin-bottom: 0;
+}
+
+.perf-label {
+    color: #aaa;
+}
+
+.perf-value {
+    color: #fff;
+    text-align: right;
+}
+
+.perf-bar {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.perf-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.1s ease-out;
+}
+
+.bar-wasm {
+    background: linear-gradient(90deg, #ff6b6b, #ff8e53);
+}
+
+.bar-memory {
+    background: linear-gradient(90deg, #4ecdc4, #45b7d1);
+}
+
+.bar-copy {
+    background: linear-gradient(90deg, #a855f7, #6366f1);
+}
+
+.bar-draw {
+    background: linear-gradient(90deg, #22c55e, #84cc16);
+}
+
+.perf-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.2);
+    margin: 10px 0;
+}
+
+.perf-total {
+    grid-template-columns: 90px 1fr;
+}
+
+.perf-total .perf-value {
+    color: #00ff00;
+    font-weight: bold;
+    font-size: 14px;
 }
 
 #canvas {
@@ -71,8 +207,114 @@ h3 {
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* 模式切换 */
+.mode-toggle {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #888;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mode-btn:hover {
+    border-color: rgba(0, 212, 255, 0.5);
+    color: #ccc;
+}
+
+.mode-btn.active {
+    border-color: #00d4ff;
+    background: rgba(0, 212, 255, 0.15);
+    color: #00d4ff;
+}
+
+/* 动画控制区域 */
+.animation-controls {
+    padding: 1.5rem;
+    background: rgba(0, 212, 255, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    text-align: center;
+}
+
+.animation-hint {
+    color: #aaa;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.btn-animation {
+    background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+    color: #fff;
+    font-weight: 600;
+    padding: 1rem 2rem;
+    font-size: 1rem;
+}
+
+.btn-animation:hover {
+    box-shadow: 0 4px 20px rgba(0, 212, 255, 0.5);
+}
+
+.btn-animation.playing {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+}
+
+.btn-animation.playing:hover {
+    box-shadow: 0 4px 20px rgba(255, 107, 107, 0.5);
+}
+
 .button-group {
     margin-bottom: 1.5rem;
+}
+
+/* 批量创建区域 */
+.batch-create {
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.batch-create label {
+    font-size: 0.9rem;
+    color: #888;
+}
+
+.batch-input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.batch-input-group .number-input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    background: linear-gradient(135deg, #2d2d44 0%, #1a1a2e 100%);
+    color: #e8e8e8;
+    text-align: center;
+}
+
+.batch-input-group .number-input:focus {
+    outline: none;
+    border-color: #00d4ff;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+}
+
+.batch-input-group .btn {
+    flex: 1;
+    margin-top: 0;
 }
 
 /* 控件区域 */
@@ -153,6 +395,35 @@ h3 {
 
 .btn-primary:hover {
     box-shadow: 0 4px 20px rgba(0, 212, 255, 0.5);
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #7b2cbf 0%, #9d4edd 100%);
+    color: #fff;
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.btn-secondary:hover {
+    box-shadow: 0 4px 20px rgba(123, 44, 191, 0.5);
+}
+
+.btn-secondary:disabled {
+    background: linear-gradient(135deg, #555 0%, #666 100%);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: #fff;
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.btn-danger:hover {
+    box-shadow: 0 4px 20px rgba(220, 53, 69, 0.5);
 }
 
 /* 精灵图列表 */

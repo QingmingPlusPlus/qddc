@@ -15,11 +15,60 @@
     <div class="main-layout">
       <div class="canvas-container">
         <canvas id="canvas" width="800" height="600"></canvas>
+        <div id="fpsDisplay" class="fps-display">FPS: --</div>
+        
+        <!-- 性能监控面板 -->
+        <div id="perfPanel" class="perf-panel">
+          <div class="perf-header">
+            <span>⚡ 性能监控</span>
+            <button id="perfToggle" class="perf-toggle">−</button>
+          </div>
+          <div id="perfContent" class="perf-content">
+            <div class="perf-row">
+              <span class="perf-label">WASM 渲染:</span>
+              <span id="perfWasm" class="perf-value">--</span>
+              <div class="perf-bar"><div id="barWasm" class="perf-bar-fill bar-wasm"></div></div>
+            </div>
+            <div class="perf-row">
+              <span class="perf-label">内存读取:</span>
+              <span id="perfMemory" class="perf-value">--</span>
+              <div class="perf-bar"><div id="barMemory" class="perf-bar-fill bar-memory"></div></div>
+            </div>
+            <div class="perf-row">
+              <span class="perf-label">数据复制:</span>
+              <span id="perfCopy" class="perf-value">--</span>
+              <div class="perf-bar"><div id="barCopy" class="perf-bar-fill bar-copy"></div></div>
+            </div>
+            <div class="perf-row">
+              <span class="perf-label">Canvas 绘制:</span>
+              <span id="perfDraw" class="perf-value">--</span>
+              <div class="perf-bar"><div id="barDraw" class="perf-bar-fill bar-draw"></div></div>
+            </div>
+            <div class="perf-divider"></div>
+            <div class="perf-row perf-total">
+              <span class="perf-label">总渲染时间:</span>
+              <span id="perfTotal" class="perf-value">--</span>
+            </div>
+            <div class="perf-row">
+              <span class="perf-label">精灵数量:</span>
+              <span id="perfSprites" class="perf-value">--</span>
+            </div>
+            <div class="perf-row">
+              <span class="perf-label">理论最大 FPS:</span>
+              <span id="perfMaxFps" class="perf-value">--</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="sidebar">
         <div class="controls">
           <h2>精灵图管理</h2>
+
+          <div class="mode-toggle">
+            <button id="modeControl" class="mode-btn active">控制模式</button>
+            <button id="modeAnimation" class="mode-btn">动画模式</button>
+          </div>
 
           <div class="control-section">
             <label for="samplingMethod">采样方法:</label>
@@ -32,10 +81,26 @@
 
           <div class="button-group">
             <button id="createSprite" class="btn btn-primary">+ 创建精灵图</button>
+            <button id="uploadImage" class="btn btn-secondary">📷 上传图片</button>
+            <button id="clearAllSprites" class="btn btn-danger">🗑️ 清空所有</button>
+            <input type="file" id="imageInput" accept=".jpg,.jpeg,.png,image/jpeg,image/png" style="display: none;" />
+          </div>
+
+          <div class="batch-create">
+            <label for="batchCount">批量创建:</label>
+            <div class="batch-input-group">
+              <input type="number" id="batchCount" min="1" max="1000" value="10" class="number-input" />
+              <button id="batchCreateSprites" class="btn btn-primary">批量添加</button>
+            </div>
           </div>
 
           <div class="sprite-list" id="spriteList">
             <p class="empty-hint">暂无精灵图，点击上方按钮创建</p>
+          </div>
+
+          <div class="animation-controls" id="animationControls" style="display: none;">
+            <p class="animation-hint">动画模式：所有精灵将逆时针旋转（6秒/圈）</p>
+            <button id="toggleAnimation" class="btn btn-animation">▶ 开始动画</button>
           </div>
         </div>
       </div>
